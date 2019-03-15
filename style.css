@@ -1,0 +1,22 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+.app {
+    display: flex;
+    justify-content: space-around;
+}
+
+.buttons {
+    display: flex;
+    justify-content: center;
+}
+
+.canvas {
+    border: 3px solid red;
+}
+
+#inputText {
+    width: 90%;
+}
