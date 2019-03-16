@@ -15,10 +15,11 @@ const button_approache = document.querySelector("#approache");
 
 button_approache.addEventListener('click', function() {
     var string = '';
+    var count = 0;
     for (let i=0; i<16; i++) {
         for (let j=0; j<16; j++) {
             var imgData=context.getImageData(tileWidth*i,tileHeight*j,tileWidth,tileHeight);
-            var count = 0;
+            count = 0;
             for (let k=0; k<imgData.data.length; k++) {
                 if (imgData.data[k]!=0) {
                     count++; 
