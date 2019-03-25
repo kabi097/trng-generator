@@ -1,3 +1,32 @@
+google.charts.load("current", {packages:["corechart"]});
+
+// Shannon entropy
+const entropy = str => {
+	return [...new Set(str)]
+	  .map(chr => {
+		return str.match(new RegExp(chr, 'g')).length;
+	  })
+	  .reduce((sum, frequency) => {
+		let p = frequency / str.length;
+		return sum + p * Math.log2(1 / p);
+	  }, 0);
+  };
+  
+
+
+  const entropy2 = (str) => {
+	const set = {};
+  
+	str.split('').forEach(
+	  c => (set[c] ? set[c]++ : (set[c] = 1))
+	);
+  
+	return Object.keys(set).reduce((acc, c) => {
+	  const p = set[c] / str.length;
+	  return acc - (p * (Math.log(p) / Math.log(2)));
+	}, 0);
+  };
+
 const canvas_input = document.querySelector('#canvas_input');
 const context = canvas_input.getContext('2d');
 
@@ -77,6 +106,7 @@ function clear(ctx) {
     ctx.clearRect(0, 0, canvas_input.width, canvas_input.height);
     document.querySelector("#inputText").value = '';	
 }
+clear(context);
 
 const button_add_to_histogram = document.querySelector("#add_to_histogram");
 
@@ -85,19 +115,37 @@ button_add_to_histogram.addEventListener('click', function() {
 		histogram_data[current_8bit_array[i]] = histogram_data[current_8bit_array[i]]+1;
 	}
 
-	histogram_data = uniq = [...new Set(histogram_data)];
+	//histogram_data = uniq = [...new Set(histogram_data)];
 
-	console.log(histogram_data);
+	console.log(current_8bit_array);
 
 	var trace = {
-		x: histogram_data,
+		y: histogram_data,
+		type: 'bar',
+	  };
+	var data = [trace];
+	Plotly.newPlot('histogram', data);
+
+	// var options = {
+	// 	title: 'Lengths of dinosaurs, in meters',
+	// 	legend: { position: 'none' },
+	//   };
+
+	//   var chart = new google.visualization.Histogram(document.getElementById('histogram'));
+	//   chart.draw(histogram_data, options);
+});
+
+const button_reset_histogram = document.querySelector("#reset_histogram");
+button_reset_histogram.addEventListener('click', function() {
+	current_8bit_array = [];
+	var trace = {
+		x: current_8bit_array,
 		type: 'histogram',
 	  };
 	var data = [trace];
 	Plotly.newPlot('histogram', data);
-});
 
-const button_reset_histogram = document.querySelector("#reset_histogram");
+});
 
 canvas_input.addEventListener('mousemove', function(e) {
     mouse.x = e.pageX - this.offsetLeft;
