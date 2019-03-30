@@ -10,11 +10,10 @@ const entropy = str => {
 		let p = frequency / str.length;
 		return sum + p * Math.log2(1 / p);
 	  }, 0);
-  };
+};
   
-
-
-  const entropy2 = (str) => {
+  
+const entropy2 = (str) => {
 	const set = {};
   
 	str.split('').forEach(
@@ -25,7 +24,7 @@ const entropy = str => {
 	  const p = set[c] / str.length;
 	  return acc - (p * (Math.log(p) / Math.log(2)));
 	}, 0);
-  };
+};
 
 const canvas_input = document.querySelector('#canvas_input');
 const context = canvas_input.getContext('2d');
@@ -34,7 +33,11 @@ const canvas_output = document.querySelector('#canvas_output');
 const context2 = canvas_output.getContext('2d');
 
 var current_8bit_array = [];	
+var current_8bit_array_from_source = [];	
 var histogram_data = [];	
+var histogram_data_from_source = [];
+
+var long_string = '';
 
 var mouse = {x: 0, y: 0};
 var original = [];
@@ -44,6 +47,7 @@ var K = 5000;
 function reset_histogram() {
 	for (let i=0; i<256; i++) {
 		histogram_data[i] = 0;
+		histogram_data_from_source[i] = 0;
 	}
 
 }
@@ -60,8 +64,8 @@ function get_pixel_array(canvas, size) {
             count = 0;
             for (let k=0; k<imgData.data.length; k++) {
                 if (imgData.data[k]!=0) {
-					array.push([i*size,j*size]);
-					break;
+									array.push([i*size,j*size]);
+									break;	
                 }
             }
 		}
@@ -77,13 +81,12 @@ function transform_to_bin(canvas) {
 
 	for (let i=0; i<16; i++) {
         for (let j=0; j<16; j++) {
-            var imgData=ctx.getImageData(width*i,height*j,width,height);
-            count = 0;
-            for (let k=0; k<imgData.data.length; k++) {
-                if (imgData.data[k]!=0) {
-                    count++; 
-                }
-            }
+						var imgData=ctx.getImageData(width*i,height*j,width,height);
+						count = 0;
+						count = imgData.data.reduce((counter, pixel) => {
+							if (pixel!=0) return counter+1;
+							else return counter;
+						});
             if (count%2==0) {
                 string += '0';
             } else {
@@ -111,13 +114,17 @@ clear(context);
 const button_add_to_histogram = document.querySelector("#add_to_histogram");
 
 button_add_to_histogram.addEventListener('click', function() {
-	for (let i=0; i<current_8bit_array.length; i++) {
-		histogram_data[current_8bit_array[i]] = histogram_data[current_8bit_array[i]]+1;
-	}
+	//Histogram 1
+	//-----------------------------------------
+	// for (let i=0; i<current_8bit_array.length; i++) {
+	// 	histogram_data[current_8bit_array[i]] = histogram_data[current_8bit_array[i]]+1;
+	// }
+
+	histogram_data = [...transform_to_bin(canvas_output)].map((value, index) => {
+		return histogram_data[index] + parseInt(value);
+	});
 
 	//histogram_data = uniq = [...new Set(histogram_data)];
-
-	console.log(current_8bit_array);
 
 	var trace = {
 		y: histogram_data,
@@ -126,24 +133,47 @@ button_add_to_histogram.addEventListener('click', function() {
 	var data = [trace];
 	Plotly.newPlot('histogram', data);
 
-	// var options = {
-	// 	title: 'Lengths of dinosaurs, in meters',
-	// 	legend: { position: 'none' },
-	//   };
+	//Histogram 2
+	//-----------------------------------------	
 
-	//   var chart = new google.visualization.Histogram(document.getElementById('histogram'));
-	//   chart.draw(histogram_data, options);
+	// for (let i=0; i<current_8bit_array_from_source.length; i++) {
+	// 	histogram_data_from_source[current_8bit_array_from_source[i]] = histogram_data_from_source[current_8bit_array_from_source[i]]+1;
+	// }
+	
+	histogram_data_from_source = [...transform_to_bin(canvas_input)].map((value, index) => {
+		return histogram_data_from_source[index] + parseInt(value);
+	});
+
+
+
+	//histogram_data = uniq = [...new Set(histogram_data)];
+
+	var trace2 = {
+		y: histogram_data_from_source,
+		type: 'bar',
+	  };
+	var data2 = [trace2];
+	Plotly.newPlot('histogram2', data2);
 });
 
 const button_reset_histogram = document.querySelector("#reset_histogram");
+
 button_reset_histogram.addEventListener('click', function() {
 	current_8bit_array = [];
+	current_8bit_array_from_source = [];
 	var trace = {
-		x: current_8bit_array,
+		x: [],
 		type: 'histogram',
 	  };
 	var data = [trace];
 	Plotly.newPlot('histogram', data);
+
+	var trace2 = {
+		x: [],
+		type: 'histogram',
+	  };
+	var data2 = [trace];
+	Plotly.newPlot('histogram2', data);
 
 });
 
@@ -164,29 +194,39 @@ const button_binary = document.querySelector("#binary");
 button_binary.addEventListener('click', function() {
 	clear(context2);
 	var string = '';
-	
+
+	//Post-processing
 	var discretized = get_pixel_array(canvas_input, 5);
-
-	// for (let a=0; a<original.length; a++) {
-	// 	discretized.push(original[a]);
-	// }
-	
 	for (let b=0; b<50; b++) {
-		for (let a=0; a<discretized.length; a++) {
-			discretized[a][0] = parseInt((discretized[a][0]+discretized[a][1])%N);
-			discretized[a][1] = parseInt(((discretized[a][1]+K*Math.sin(N/Math.PI)))%N);
-		}
+		discretized = discretized.map((value, index) => {
+			return [
+			parseInt((value[0]+value[1])%N),
+			parseInt((value[1]+K*Math.sin(N/Math.PI))%N),
+			];
+		});
+		// for (let a=0; a<discretized.length; a++) {
+		// 	discretized[a][0] = parseInt((discretized[a][0]+discretized[a][1])%N);
+		// 	discretized[a][1] = parseInt(((discretized[a][1]+K*Math.sin(N/Math.PI)))%N);
+		// }
 	}
 
-	for (let c=0; c<discretized.length; c++) {
-		context2.fillRect(discretized[c][0], discretized[c][1], 5, 5);
-	}
+	discretized.forEach((value, index) => {
+		context2.fillRect(value[0], value[1], 5, 5);
+	});
+
+	// for (let c=0; c<discretized.length; c++) {
+	// 	context2.fillRect(discretized[c][0], discretized[c][1], 5, 5);
+	// }
 	
 	string = transform_to_bin(canvas_output);
 	
 	current_8bit_array = bin_to_8bit_array(string);	
+
+	current_8bit_array_from_source = bin_to_8bit_array(transform_to_bin(canvas_input));
 	
-    document.querySelector("#inputText").value = string;	
+	document.querySelector("#inputText").value = string;
+	long_string = long_string+string;	
+	document.querySelector("#entropy").innerHTML = entropy(long_string);
 });
 
 const button_clear = document.querySelector("#clear");
