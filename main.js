@@ -11,20 +11,6 @@ const entropy = str => {
 		return sum + p * Math.log2(1 / p);
 	  }, 0);
 };
-  
-  
-const entropy2 = (str) => {
-	const set = {};
-  
-	str.split('').forEach(
-	  c => (set[c] ? set[c]++ : (set[c] = 1))
-	);
-  
-	return Object.keys(set).reduce((acc, c) => {
-	  const p = set[c] / str.length;
-	  return acc - (p * (Math.log(p) / Math.log(2)));
-	}, 0);
-};
 
 const canvas_input = document.querySelector('#canvas_input');
 const context = canvas_input.getContext('2d');
@@ -32,42 +18,27 @@ const context = canvas_input.getContext('2d');
 const canvas_output = document.querySelector('#canvas_output');
 const context2 = canvas_output.getContext('2d');
 
-var current_8bit_array = [];	
-var current_8bit_array_from_source = [];	
-var histogram_data = [];	
-var histogram_data_from_source = [];
+var histogram_data = new Array(255).fill(0);
+var histogram_data_from_source = new Array(255).fill(0);
 
 var long_string = '';
+var long_string_from_source = '';
 
 var mouse = {x: 0, y: 0};
-var original = [];
 var N = 400;
 var K = 5000;
 
-function reset_histogram() {
-	for (let i=0; i<256; i++) {
-		histogram_data[i] = 0;
-		histogram_data_from_source[i] = 0;
-	}
-
-}
-
-reset_histogram();
-
-function get_pixel_array(canvas, size) {
+function get_post_processing_coordinates(canvas, size) {
 	var array = [];
 	var ctx = canvas.getContext('2d');
 
 	for (let i=0; i<canvas_input.width/size; i++) {
         for (let j=0; j<canvas_input.height/size; j++) {
             var imgData=ctx.getImageData(i*size,j*size,1,1);
-            count = 0;
-            for (let k=0; k<imgData.data.length; k++) {
-                if (imgData.data[k]!=0) {
-									array.push([i*size,j*size]);
-									break;	
-                }
-            }
+						count = 0;
+						imgData.data.forEach((value, index) => {
+							if (value!=0) array.push([i*size,j*size]);
+						});
 		}
 	}
 	return array;
@@ -115,16 +86,9 @@ const button_add_to_histogram = document.querySelector("#add_to_histogram");
 
 button_add_to_histogram.addEventListener('click', function() {
 	//Histogram 1
-	//-----------------------------------------
-	// for (let i=0; i<current_8bit_array.length; i++) {
-	// 	histogram_data[current_8bit_array[i]] = histogram_data[current_8bit_array[i]]+1;
-	// }
-
 	histogram_data = [...transform_to_bin(canvas_output)].map((value, index) => {
 		return histogram_data[index] + parseInt(value);
 	});
-
-	//histogram_data = uniq = [...new Set(histogram_data)];
 
 	var trace = {
 		y: histogram_data,
@@ -134,19 +98,9 @@ button_add_to_histogram.addEventListener('click', function() {
 	Plotly.newPlot('histogram', data);
 
 	//Histogram 2
-	//-----------------------------------------	
-
-	// for (let i=0; i<current_8bit_array_from_source.length; i++) {
-	// 	histogram_data_from_source[current_8bit_array_from_source[i]] = histogram_data_from_source[current_8bit_array_from_source[i]]+1;
-	// }
-	
 	histogram_data_from_source = [...transform_to_bin(canvas_input)].map((value, index) => {
 		return histogram_data_from_source[index] + parseInt(value);
 	});
-
-
-
-	//histogram_data = uniq = [...new Set(histogram_data)];
 
 	var trace2 = {
 		y: histogram_data_from_source,
@@ -159,8 +113,6 @@ button_add_to_histogram.addEventListener('click', function() {
 const button_reset_histogram = document.querySelector("#reset_histogram");
 
 button_reset_histogram.addEventListener('click', function() {
-	current_8bit_array = [];
-	current_8bit_array_from_source = [];
 	var trace = {
 		x: [],
 		type: 'histogram',
@@ -175,16 +127,13 @@ button_reset_histogram.addEventListener('click', function() {
 	var data2 = [trace];
 	Plotly.newPlot('histogram2', data);
 
+	long_string = "";
 });
 
 canvas_input.addEventListener('mousemove', function(e) {
     mouse.x = e.pageX - this.offsetLeft;
     mouse.y = e.pageY - this.offsetTop;
     context.fillRect(mouse.x, mouse.y, 5, 5);
-	// original.push([
-	// 	e.pageX - this.offsetLeft, 
-	// 	e.pageY - this.offsetTop,
-	// ]);
 }, false);
 
 let tileWidth = canvas_input.width / 16;
@@ -196,12 +145,12 @@ button_binary.addEventListener('click', function() {
 	var string = '';
 
 	//Post-processing
-	var discretized = get_pixel_array(canvas_input, 5);
+	var discretized = get_post_processing_coordinates(canvas_input, 5);
 	for (let b=0; b<50; b++) {
 		discretized = discretized.map((value, index) => {
 			return [
-			parseInt((value[0]+value[1])%N),
-			parseInt((value[1]+K*Math.sin(N/Math.PI))%N),
+				parseInt((value[0]+value[1])%N),
+				parseInt((value[1]+K*Math.sin(N/Math.PI))%N),
 			];
 		});
 		// for (let a=0; a<discretized.length; a++) {
@@ -213,26 +162,20 @@ button_binary.addEventListener('click', function() {
 	discretized.forEach((value, index) => {
 		context2.fillRect(value[0], value[1], 5, 5);
 	});
-
-	// for (let c=0; c<discretized.length; c++) {
-	// 	context2.fillRect(discretized[c][0], discretized[c][1], 5, 5);
-	// }
 	
 	string = transform_to_bin(canvas_output);
-	
-	current_8bit_array = bin_to_8bit_array(string);	
-
-	current_8bit_array_from_source = bin_to_8bit_array(transform_to_bin(canvas_input));
-	
+	string_from_source = transform_to_bin(canvas_input);
+		
 	document.querySelector("#inputText").value = string;
-	long_string = long_string+string;	
-	document.querySelector("#entropy").innerHTML = entropy(long_string);
+	long_string += string;	
+	long_string_from_source += string_from_source;
+	document.querySelector("#entropy1").innerHTML = entropy(long_string);
+	document.querySelector("#entropy2").innerHTML = entropy(long_string_from_source);
 });
 
 const button_clear = document.querySelector("#clear");
 
 button_clear.addEventListener('click', function() {
-	original = [];
 	clear(context);
 	clear(context2);
 });
