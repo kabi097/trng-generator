@@ -18,15 +18,28 @@ const context = canvas_input.getContext('2d');
 const canvas_output = document.querySelector('#canvas_output');
 const context2 = canvas_output.getContext('2d');
 
+context.beginPath();
+
 var histogram_data = new Array(255).fill(0);
 var histogram_data_from_source = new Array(255).fill(0);
 
 var long_string = '';
 var long_string_from_source = '';
 
-var mouse = {x: 0, y: 0};
+var mouse = {x: -1, y: -1};
 var N = 400;
 var K = 5000;
+
+function draw(ctx, x, y) {
+	ctx.beginPath();
+	ctx.moveTo(mouse.x, mouse.y);
+	ctx.lineTo(x, y);
+	ctx.strokeStyle = 5;
+	ctx.lineWidth = 5;
+	ctx.stroke();
+	ctx.closePath();
+}
+
 
 function get_post_processing_coordinates(canvas, size) {
 	var array = [];
@@ -82,37 +95,37 @@ function clear(ctx) {
 }
 clear(context);
 
+const add_to_histogram_action = function() {
+		//Histogram 1
+		histogram_data = [...transform_to_bin(canvas_output)].map((value, index) => {
+			return histogram_data[index] + parseInt(value);
+		});
+	
+		var trace = {
+			y: histogram_data,
+			type: 'bar',
+			};
+		var data = [trace];
+		Plotly.newPlot('histogram', data);
+	
+		//Histogram 2
+		histogram_data_from_source = [...transform_to_bin(canvas_input)].map((value, index) => {
+			return histogram_data_from_source[index] + parseInt(value);
+		});
+	
+		var trace2 = {
+			y: histogram_data_from_source,
+			type: 'bar',
+			};
+		var data2 = [trace2];
+		Plotly.newPlot('histogram2', data2);
+};
+
 const button_add_to_histogram = document.querySelector("#add_to_histogram");
+button_add_to_histogram.addEventListener('click', add_to_histogram_action);
 
-button_add_to_histogram.addEventListener('click', function() {
-	//Histogram 1
-	histogram_data = [...transform_to_bin(canvas_output)].map((value, index) => {
-		return histogram_data[index] + parseInt(value);
-	});
 
-	var trace = {
-		y: histogram_data,
-		type: 'bar',
-	  };
-	var data = [trace];
-	Plotly.newPlot('histogram', data);
-
-	//Histogram 2
-	histogram_data_from_source = [...transform_to_bin(canvas_input)].map((value, index) => {
-		return histogram_data_from_source[index] + parseInt(value);
-	});
-
-	var trace2 = {
-		y: histogram_data_from_source,
-		type: 'bar',
-	  };
-	var data2 = [trace2];
-	Plotly.newPlot('histogram2', data2);
-});
-
-const button_reset_histogram = document.querySelector("#reset_histogram");
-
-button_reset_histogram.addEventListener('click', function() {
+const reset_histogram = function() {
 	var trace = {
 		x: [],
 		type: 'histogram',
@@ -128,19 +141,35 @@ button_reset_histogram.addEventListener('click', function() {
 	Plotly.newPlot('histogram2', data);
 
 	long_string = "";
-});
+	long_string_from_source = "";
+	document.querySelector("#binary_input").value = long_string_from_source;
+	document.querySelector("#binary_output").value = long_string;
+};
+
+const button_reset_histogram = document.querySelector("#reset_histogram");
+button_reset_histogram.addEventListener('click', reset_histogram);
 
 canvas_input.addEventListener('mousemove', function(e) {
-    mouse.x = e.pageX - this.offsetLeft;
-    mouse.y = e.pageY - this.offsetTop;
-    context.fillRect(mouse.x, mouse.y, 5, 5);
+	if (mouse.x == -1 && mouse.y == -1) {
+		mouse.x = e.pageX - this.offsetLeft;
+		mouse.y = e.pageY - this.offsetTop;
+	}
+	draw(context, e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+	mouse.x = e.pageX - this.offsetLeft;
+	mouse.y = e.pageY - this.offsetTop;
+	//context.fillRect(mouse.x, mouse.y, 5, 5);
 }, false);
+
+canvas_input.addEventListener('mouseleave', function(e) {
+	mouse.x = -1;
+	mouse.y = -1;
+});
 
 let tileWidth = canvas_input.width / 16;
 let tileHeight = canvas_input.height / 16;
 const button_binary = document.querySelector("#binary");
 
-button_binary.addEventListener('click', function() {
+const button_binary_action = function () {
 	clear(context2);
 	var string = '';
 
@@ -171,12 +200,34 @@ button_binary.addEventListener('click', function() {
 	long_string_from_source += string_from_source;
 	document.querySelector("#entropy1").innerHTML = entropy(long_string);
 	document.querySelector("#entropy2").innerHTML = entropy(long_string_from_source);
-});
+	document.querySelector("#binary_input").value = long_string_from_source;
+	document.querySelector("#binary_output").value = long_string;
+};
+
+button_binary.addEventListener('click', button_binary_action);
 
 const button_clear = document.querySelector("#clear");
 
-button_clear.addEventListener('click', function() {
+const clear_action = function() {
 	clear(context);
 	clear(context2);
+}
+button_clear.addEventListener('click', clear_action);
+
+canvas_input.addEventListener('click', function(e) {
+	clear(context2);
+	button_binary_action();
+	add_to_histogram_action();
+	clear(context);
 });
 
+document.querySelector("#numbers_button").addEventListener("click", function() {
+	K = document.querySelector("#K_number").value;
+	if (document.querySelector("#N_number").value != N) {
+		N = document.querySelector("#N_number").value;
+		canvas_input.width = N;
+		canvas_input.height = N;
+		canvas_output.width = N;
+		canvas_output.height = N;
+	}
+});
